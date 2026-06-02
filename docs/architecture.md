@@ -106,6 +106,262 @@ flowchart TB
   jenkins -. "alternative CI" .-> services
 ```
 
+## Breakdown Diagrams
+
+The whole-system diagram explains how the major platform pieces connect. The
+diagrams below zoom into the main engineering areas so a reader can understand
+the frontend structure, backend service layering, DevOps workflow, and AI/data
+path independently.
+
+### Frontend Breakdown Diagram
+
+Both web apps use the same structure: Next.js App Router for pages/layout,
+React providers for shared client state, hooks for data fetching, Axios clients
+for API calls, typed DTOs, and small reusable UI components.
+
+```mermaid
+flowchart TB
+  candidateUser["Candidate User"]
+  employerUser["Employer / Recruiter User"]
+
+  subgraph candidateApp["candidate-web<br/>Next.js, React, TypeScript, Tailwind"]
+    cLayout["app/layout.tsx<br/>HTML shell and metadata"]
+    cProviders["app/providers.tsx<br/>TanStack Query provider"]
+    cPage["app/page.tsx<br/>Candidate dashboard"]
+    cHooks["hooks/useRecommendedJobs.ts<br/>Job recommendation data"]
+    cApi["services/api.ts<br/>Axios API client"]
+    cTypes["types/job.ts<br/>Typed job DTOs"]
+    cUi["components/ui<br/>Reusable visual components"]
+    cStyles["app/globals.css<br/>Tailwind base styles"]
+  end
+
+  subgraph employerApp["employer-web<br/>Next.js, React, TypeScript, Tailwind"]
+    eLayout["app/layout.tsx<br/>HTML shell and metadata"]
+    eProviders["app/providers.tsx<br/>TanStack Query provider"]
+    ePage["app/page.tsx<br/>Employer dashboard"]
+    eHooks["hooks/useRankedCandidates.ts<br/>Ranked candidate data"]
+    eApi["services/api.ts<br/>Axios API client"]
+    eTypes["types/candidate.ts<br/>Typed candidate DTOs"]
+    eUi["components/ui<br/>Reusable visual components"]
+    eStyles["app/globals.css<br/>Tailwind base styles"]
+  end
+
+  sharedConfig["Shared frontend tooling<br/>package workspaces, tsconfig, Tailwind, Prettier"]
+  gateway["API Gateway<br/>http://localhost:8080"]
+
+  candidateUser --> cPage
+  employerUser --> ePage
+
+  cLayout --> cProviders --> cPage
+  cStyles --> cPage
+  cPage --> cUi
+  cPage --> cHooks --> cApi
+  cTypes --> cHooks
+
+  eLayout --> eProviders --> ePage
+  eStyles --> ePage
+  ePage --> eUi
+  ePage --> eHooks --> eApi
+  eTypes --> eHooks
+
+  cApi --> gateway
+  eApi --> gateway
+  sharedConfig -. "keeps app setup consistent" .-> cLayout
+  sharedConfig -. "keeps app setup consistent" .-> eLayout
+```
+
+### Backend Breakdown Diagram
+
+The backend is split by business capability. The API Gateway is the entry
+point, each service owns a domain boundary, and `common-lib` holds shared Java
+models so services do not duplicate cross-cutting DTOs and enums.
+
+```mermaid
+flowchart TB
+  browserClients["Candidate Web and Employer Web"]
+  gateway["api-gateway :8080<br/>Routing, JWT checks, rate-limit hook"]
+
+  subgraph domainServices["Spring Boot Domain Services"]
+    auth["auth-service :8081<br/>Identity, login, roles"]
+    candidate["candidate-service :8082<br/>Profiles, resumes, candidate embeddings"]
+    employer["employer-service :8083<br/>Companies and employer workflows"]
+    job["job-service :8084<br/>Jobs, publishing, job embeddings"]
+    application["application-service :8085<br/>Applications and statuses"]
+    matching["matching-service :8086<br/>Vector search, score, explanation"]
+    notification["notification-service :8087<br/>Email notifications"]
+  end
+
+  subgraph moduleLayers["Typical Service Module Layers"]
+    appClass["Application class<br/>Spring Boot startup"]
+    controller["controller package<br/>REST endpoints"]
+    dto["dto package<br/>Request and response contracts"]
+    service["service package<br/>Business logic"]
+    repository["repository package<br/>JPA persistence when needed"]
+    entity["entity package<br/>Database models when needed"]
+    config["application.yml and config package<br/>port, env, actuator, security"]
+  end
+
+  common["common-lib<br/>ApiResponse, ErrorResponse, UserRole, ApplicationStatus"]
+  postgres[("PostgreSQL + pgvector<br/>Business data and embeddings")]
+  redis[("Redis<br/>Cache, rate-limit, async coordination")]
+  minio[("MinIO<br/>Resume object storage")]
+  ai["AI Provider Layer<br/>LLM parsing, embeddings, explanations"]
+  actuator["Spring Boot Actuator<br/>/actuator/health and /actuator/prometheus"]
+
+  browserClients --> gateway
+  gateway --> auth
+  gateway --> candidate
+  gateway --> employer
+  gateway --> job
+  gateway --> application
+  gateway --> matching
+  gateway --> notification
+
+  appClass --> controller
+  controller --> dto
+  controller --> service
+  service --> repository --> entity --> postgres
+  config --> actuator
+
+  common -. "shared models" .-> auth
+  common -. "shared models" .-> candidate
+  common -. "shared models" .-> application
+  auth --> postgres
+  candidate --> postgres
+  employer --> postgres
+  job --> postgres
+  application --> postgres
+  matching --> postgres
+  gateway --> redis
+  candidate --> minio
+  candidate --> ai
+  job --> ai
+  matching --> ai
+```
+
+### DevOps And Observability Breakdown Diagram
+
+The MVP separates validation, local infrastructure, future deployment assets,
+and observability. GitHub Actions and Jenkins validate code. Docker Compose
+runs local dependencies. Prometheus and Grafana make service health visible.
+
+```mermaid
+flowchart LR
+  developer["Developer"]
+  github["GitHub Repository<br/>main, develop, pull requests"]
+
+  subgraph ci["CI Validation"]
+    actions["GitHub Actions<br/>.github/workflows/ci.yml"]
+    jenkins["Jenkins<br/>Jenkinsfile"]
+    frontendChecks["Frontend checks<br/>npm install, format, typecheck, build"]
+    backendChecks["Backend checks<br/>mvn verify"]
+    composeCheck["Compose check<br/>docker compose config"]
+  end
+
+  subgraph localInfra["Local Docker Compose"]
+    dockerCompose["docker compose<br/>scripts/start-local.sh"]
+    postgres["PostgreSQL + pgvector<br/>:5432"]
+    redis["Redis<br/>:6379"]
+    minio["MinIO<br/>:9000 / :9001"]
+    prometheus["Prometheus<br/>:9090"]
+    grafana["Grafana OSS<br/>:3002"]
+  end
+
+  subgraph futureDeploy["Future Deployment Assets"]
+    dockerfiles["Service Dockerfiles<br/>backend/*/Dockerfile"]
+    k8s["Kubernetes starters<br/>infra/k8s"]
+    terraform["Terraform placeholders<br/>infra/terraform/dev and prod"]
+  end
+
+  services["Running Spring Boot services<br/>ports 8080 through 8087"]
+
+  developer --> github
+  github --> actions
+  github -. "optional self-hosted CI" .-> jenkins
+  actions --> frontendChecks
+  actions --> backendChecks
+  actions --> composeCheck
+  jenkins --> frontendChecks
+  jenkins --> backendChecks
+  jenkins --> composeCheck
+
+  developer --> dockerCompose
+  dockerCompose --> postgres
+  dockerCompose --> redis
+  dockerCompose --> minio
+  dockerCompose --> prometheus
+  dockerCompose --> grafana
+  services --> postgres
+  services --> redis
+  services --> minio
+
+  prometheus -. "scrapes /actuator/prometheus" .-> services
+  grafana -. "queries Prometheus datasource" .-> prometheus
+
+  backendChecks -. "verifies" .-> dockerfiles
+  composeCheck -. "validates local runtime config" .-> dockerCompose
+  dockerfiles -. "basis for later image build" .-> k8s
+  terraform -. "provisions later cloud environments" .-> k8s
+```
+
+### AI And Data Breakdown Diagram
+
+The AI path has two ingestion sides: candidate resumes and employer job posts.
+Both produce structured data plus embeddings. Matching then combines vector
+similarity, deterministic weighting, and AI explanation text.
+
+```mermaid
+flowchart TB
+  candidateResume["Candidate resume upload"]
+  employerJob["Employer job post"]
+
+  subgraph candidateFlow["Candidate AI Ingestion"]
+    resumeController["ResumeController<br/>POST /api/candidates/resume/upload"]
+    objectStorage["ObjectStorageClient<br/>store original resume"]
+    resumeParsing["ResumeParsingService<br/>extract skills and experience"]
+    candidateEmbedding["CandidateEmbeddingService<br/>create candidate vector"]
+    candidateProfile["CandidateProfileService<br/>save profile summary"]
+  end
+
+  subgraph jobFlow["Job AI Ingestion"]
+    jobController["JobController<br/>POST /api/employers/jobs"]
+    jobService["JobService<br/>validate and publish job"]
+    jobParsing["AI job parsing<br/>requirements, seniority, domain"]
+    jobEmbedding["Job embedding creation<br/>create job vector"]
+  end
+
+  subgraph aiProvider["AI Provider Layer"]
+    prompts["Versioned prompts<br/>ai/prompts"]
+    llm["LLM provider<br/>OpenAI or Vertex AI Gemini"]
+    embeddingModel["Embedding model<br/>resume and job vectors"]
+    evals["Evaluation samples<br/>ai/evaluation"]
+  end
+
+  postgres[("PostgreSQL + pgvector<br/>profiles, jobs, applications, embeddings")]
+  minio[("MinIO<br/>original resume files")]
+
+  subgraph matchingFlow["Matching And Explanation"]
+    vectorSearch["pgvector similarity search<br/>shortlist candidates/jobs"]
+    weightedScore["Weighted score<br/>skills, experience, title, location, AI signal"]
+    explanation["Match explanation<br/>strengths, gaps, suggestions"]
+    recommendations["Candidate recommendations<br/>and recruiter rankings"]
+  end
+
+  candidateResume --> resumeController --> objectStorage --> minio
+  resumeController --> resumeParsing --> llm
+  resumeParsing --> candidateProfile --> postgres
+  resumeParsing --> candidateEmbedding --> embeddingModel --> postgres
+
+  employerJob --> jobController --> jobService --> jobParsing --> llm
+  jobParsing --> jobEmbedding --> embeddingModel
+  jobService --> postgres
+
+  prompts --> llm
+  evals -. "used to tune prompts and matching quality" .-> prompts
+  postgres --> vectorSearch --> weightedScore --> explanation --> recommendations
+  llm --> explanation
+```
+
 ## Sequence Diagrams
 
 ### Candidate Signup, Resume Upload, And Job Recommendations
