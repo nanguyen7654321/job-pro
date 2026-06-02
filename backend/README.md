@@ -66,3 +66,45 @@ http://localhost:3002
 - Docker Compose runs the local infrastructure stack.
 - Kubernetes is optional for later cluster orchestration and is not required for
   the MVP local workflow.
+
+## Backend Troubleshooting
+
+### Service Does Not Start
+
+Run from `backend`:
+
+```bash
+mvn -pl candidate-service spring-boot:run
+```
+
+If dependencies fail, run:
+
+```bash
+mvn -B -U verify
+```
+
+### Service Cannot Connect To Postgres
+
+Check:
+
+```bash
+docker compose ps postgres
+psql postgresql://aijobs:aijobs@localhost:5432/aijobs -c "\dt"
+```
+
+Then run the seed script if tables are missing:
+
+```bash
+psql postgresql://aijobs:aijobs@localhost:5432/aijobs -f scripts/seed-data.sql
+```
+
+### Actuator Metrics Are Missing
+
+Check:
+
+```bash
+curl http://localhost:8082/actuator/health
+curl http://localhost:8082/actuator/prometheus
+```
+
+Confirm the service `application.yml` exposes `health,info,prometheus`.

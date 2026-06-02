@@ -184,6 +184,69 @@ sets `host.docker.internal:host-gateway` for the Prometheus service.
 Make sure the Jenkins agent user has permission to access Docker. Avoid mounting
 the host Docker socket into untrusted Jenkins jobs.
 
+### GitHub Actions Workflow Does Not Start
+
+Check:
+
+- The workflow file exists at `.github/workflows/ci.yml`.
+- The repository has Actions enabled.
+- The branch is `main`, `develop`, a pull request branch, or manually triggered.
+
+Manual trigger:
+
+1. Open the repository in GitHub.
+2. Open `Actions`.
+3. Select `AI Job Platform CI`.
+4. Click `Run workflow`.
+
+### Jenkins Cannot Find Jenkinsfile
+
+Check:
+
+- The file is named exactly `Jenkinsfile`.
+- The Jenkins job points to the correct repository and branch.
+- The Jenkins workspace checked out the repository root.
+
+### Jenkins Uses The Wrong Node Or Java Version
+
+Add tool configuration in Jenkins or verify on the agent:
+
+```bash
+node -v
+npm -v
+java -version
+mvn -v
+```
+
+### Prometheus Scrapes The Wrong Host
+
+The local Prometheus container scrapes backend services through
+`host.docker.internal`. If targets stay down:
+
+```bash
+curl http://localhost:8082/actuator/prometheus
+docker compose logs prometheus
+```
+
+Confirm `infra/observability/prometheus/prometheus.yml` uses the right service
+ports.
+
+### Grafana Dashboard Is Missing
+
+Check provisioning mounts:
+
+```bash
+docker compose logs grafana
+ls infra/observability/grafana/provisioning
+ls infra/observability/grafana/dashboards
+```
+
+Restart Grafana:
+
+```bash
+docker compose restart grafana
+```
+
 ## Interview Questions And Answers
 
 **Q: Why add CI/CD to an MVP?**

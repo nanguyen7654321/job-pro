@@ -225,14 +225,68 @@ curl -X POST http://localhost:8086/api/matching/explain \
 
 ## 13. Common Troubleshooting
 
+### Fast Health Checklist
+
+Run these first:
+
+```bash
+git status --short
+node -v
+npm -v
+java -version
+mvn -v
+docker --version
+docker compose version
+docker compose ps
+```
+
+If one of these commands is missing, install that tool before debugging the
+application.
+
+### Git Push Fails
+
+For HTTPS username errors, configure GitHub CLI or switch to SSH:
+
+```bash
+brew install gh
+gh auth login
+git push -u origin main
+```
+
+SSH option:
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+git remote set-url origin git@github.com:nanguyen7654321/job-pro.git
+ssh -T git@github.com
+git push -u origin main
+```
+
+Add the SSH key at:
+
+```text
+https://github.com/settings/keys
+```
+
 ### Docker Services Do Not Start
 
-Check whether the ports are already in use:
+Check whether ports are already in use:
 
 ```bash
 lsof -i :5432
 lsof -i :6379
 lsof -i :9000
+lsof -i :9001
+lsof -i :9090
+lsof -i :3002
+```
+
+Then check Docker:
+
+```bash
+docker compose config
+docker compose ps
+docker compose logs postgres
 ```
 
 Stop conflicting local services or change ports in `docker-compose.yml`.
@@ -258,7 +312,100 @@ docker compose ps
 
 Then confirm `.env` matches the datasource values in service config.
 
-## 13. Recommended First Development Task
+If schema validation fails:
+
+```bash
+psql postgresql://aijobs:aijobs@localhost:5432/aijobs -f scripts/seed-data.sql
+```
+
+### Java Or Maven Problems
+
+Check:
+
+```bash
+java -version
+mvn -v
+```
+
+Fix:
+
+- Install Java 25.
+- Install Maven 3.9 or newer.
+- Restart the terminal after changing `JAVA_HOME`.
+
+### npm Or Prettier Problems
+
+Run:
+
+```bash
+npm install
+npm run format:check
+npm run typecheck:web
+```
+
+If needed:
+
+```bash
+rm -rf node_modules frontend/candidate-web/.next frontend/employer-web/.next
+npm install
+```
+
+### Prometheus Or Grafana Problems
+
+Check containers:
+
+```bash
+docker compose ps prometheus grafana
+```
+
+Check Prometheus targets:
+
+```text
+http://localhost:9090/targets
+```
+
+Check Grafana:
+
+```text
+http://localhost:3002
+```
+
+Default login is `admin` / `admin` unless `.env` changed it.
+
+### CI Pipeline Problems
+
+Run the same commands locally:
+
+```bash
+npm install
+npm run format:check
+npm run ci:web
+npm run ci:backend
+npm run compose:config
+```
+
+`ci:backend` requires Maven. `compose:config` requires Docker.
+
+### Clean Restart
+
+Keep data:
+
+```bash
+./scripts/stop-local.sh
+./scripts/start-local.sh
+```
+
+Delete local Docker volumes:
+
+```bash
+docker compose down -v
+./scripts/start-local.sh
+```
+
+Only use `down -v` if you can lose local Postgres, MinIO, Prometheus, and
+Grafana data.
+
+## 14. Recommended First Development Task
 
 Build candidate resume upload end to end:
 
@@ -270,7 +417,7 @@ Build candidate resume upload end to end:
 6. Generate embedding and store it in pgvector.
 7. Show updated profile in candidate-web.
 
-## 14. Run CI Locally
+## 15. Run CI Locally
 
 The hosted CI pipeline installs dependencies first. To run the same core commands locally, run `npm install` once, then:
 

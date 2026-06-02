@@ -701,7 +701,147 @@ frontend/employer-web                          employer Next.js app
 
 ## Troubleshooting
 
+Use this section like a first-response runbook. Start with the symptom, run the
+checks, then apply the fix.
+
+### GitHub Push Fails With HTTPS Username Error
+
+Symptom:
+
+```text
+fatal: could not read Username for 'https://github.com'
+```
+
+Cause:
+
+- Git is using an HTTPS remote but no GitHub credentials are configured in this
+  shell.
+
+Fix option A, use SSH:
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+Add the output to GitHub:
+
+```text
+https://github.com/settings/keys
+```
+
+Then switch the remote and push:
+
+```bash
+git remote set-url origin git@github.com:nanguyen7654321/job-pro.git
+ssh -T git@github.com
+git push -u origin main
+```
+
+Fix option B, use GitHub CLI:
+
+```bash
+brew install gh
+gh auth login
+git push -u origin main
+```
+
+### GitHub SSH Says Permission Denied
+
+Symptom:
+
+```text
+git@github.com: Permission denied (publickey).
+```
+
+Checks:
+
+```bash
+ls -la ~/.ssh
+cat ~/.ssh/id_ed25519.pub
+ssh -T git@github.com
+```
+
+Fix:
+
+- Add the public key to GitHub SSH keys.
+- Confirm the repository owner is `nanguyen7654321`.
+- Confirm the remote is SSH:
+
+```bash
+git remote -v
+git remote set-url origin git@github.com:nanguyen7654321/job-pro.git
+```
+
+### GitHub SSH Host Key Verification Failed
+
+Symptom:
+
+```text
+Host key verification failed.
+```
+
+Fix:
+
+```bash
+ssh -o StrictHostKeyChecking=accept-new -T git@github.com
+```
+
+If your company manages SSH known hosts, ask before deleting `~/.ssh/known_hosts`.
+
+### Git Says Remote Origin Already Exists
+
+Symptom:
+
+```text
+error: remote origin already exists.
+```
+
+Fix:
+
+```bash
+git remote -v
+git remote set-url origin git@github.com:nanguyen7654321/job-pro.git
+```
+
+### Git Push Is Rejected Because Remote Has Commits
+
+Symptom:
+
+```text
+! [rejected] main -> main (fetch first)
+```
+
+Fix:
+
+```bash
+git pull --rebase origin main
+git push origin main
+```
+
+If the remote repository only contains a generated README you do not need, review
+the diff carefully before deciding whether to keep or replace it.
+
+### Accidentally Staged A Secret
+
+Checks:
+
+```bash
+git status --short
+git diff --cached
+```
+
+Unstage:
+
+```bash
+git restore --staged .env
+```
+
+This project ignores `.env`, but always check before committing API keys,
+passwords, private keys, or real resume files.
+
 ### Docker Is Not Running
+
+Checks:
 
 ```bash
 docker --version
@@ -709,9 +849,91 @@ docker compose version
 docker compose ps
 ```
 
-Open Docker Desktop and wait until it is running.
+Fix:
+
+- Open Docker Desktop.
+- Wait until Docker says it is running.
+- Retry `docker compose ps`.
+
+### Docker Compose Port Is Already In Use
+
+Checks:
+
+```bash
+lsof -i :5432
+lsof -i :6379
+lsof -i :9000
+lsof -i :9001
+lsof -i :9090
+lsof -i :3002
+```
+
+Fix options:
+
+- Stop the conflicting local process.
+- Change the host port in `docker-compose.yml`.
+- Stop this stack with `./scripts/stop-local.sh` before restarting.
+
+### Docker Compose Config Fails
+
+Run:
+
+```bash
+docker compose config
+```
+
+Common causes:
+
+- YAML indentation error.
+- Missing file mounted by a volume.
+- Docker Desktop is not running.
+
+### Postgres Starts But Tables Are Missing
+
+Cause:
+
+- `scripts/seed-data.sql` only runs automatically the first time the Postgres
+  Docker volume is created.
+
+Fix:
+
+```bash
+psql postgresql://aijobs:aijobs@localhost:5432/aijobs -f scripts/seed-data.sql
+```
+
+If you can lose local data, recreate the volume:
+
+```bash
+docker compose down -v
+./scripts/start-local.sh
+```
+
+### Candidate Service Fails Schema Validation
+
+Symptom:
+
+```text
+Schema-validation: missing table [candidate_profiles]
+```
+
+Fix:
+
+```bash
+docker compose ps
+psql postgresql://aijobs:aijobs@localhost:5432/aijobs -f scripts/seed-data.sql
+cd backend
+mvn -pl candidate-service spring-boot:run
+```
 
 ### Maven Is Missing
+
+Symptom:
+
+```text
+zsh: command not found: mvn
+```
+
+Fix:
 
 ```bash
 brew install maven
@@ -720,11 +942,166 @@ mvn -v
 
 ### Java Version Is Wrong
 
+Checks:
+
 ```bash
 java -version
+mvn -v
 ```
 
-Install Java 25 and make sure `JAVA_HOME` points to it.
+Fix:
+
+- Install Java 25.
+- Set `JAVA_HOME` to a Java 25 JDK.
+- Restart the terminal.
+
+### Backend Service Port Is Already Used
+
+Common backend ports:
+
+- API Gateway: `8080`
+- Auth Service: `8081`
+- Candidate Service: `8082`
+- Employer Service: `8083`
+- Job Service: `8084`
+- Application Service: `8085`
+- Matching Service: `8086`
+- Notification Service: `8087`
+
+Check:
+
+```bash
+lsof -i :8080
+```
+
+Fix:
+
+- Stop the process using the port.
+- Or run a service on another port:
+
+```bash
+SERVER_PORT=8092 mvn -pl candidate-service spring-boot:run
+```
+
+### Jenkins Conflicts With API Gateway
+
+Jenkins often defaults to port `8080`, which is also the API Gateway port.
+
+Fix options:
+
+- Stop Jenkins while running API Gateway.
+- Move Jenkins to another port, such as `8088`.
+- Run API Gateway with `SERVER_PORT=8088` if Jenkins must keep `8080`.
+
+### npm Install Fails
+
+Checks:
+
+```bash
+node -v
+npm -v
+npm config get registry
+```
+
+Fix:
+
+```bash
+rm -rf node_modules frontend/candidate-web/.next frontend/employer-web/.next
+npm install
+```
+
+If corporate proxy settings are required, configure npm proxy settings before
+installing packages.
+
+### Prettier Command Not Found
+
+Cause:
+
+- Dependencies have not been installed yet.
+
+Fix:
+
+```bash
+npm install
+npm run format:check
+```
+
+One-time fallback:
+
+```bash
+npx --yes prettier --check "**/*.{md,json,yml,yaml,ts,tsx,css}"
+```
+
+### Candidate Or Employer Web Does Not Start
+
+Checks:
+
+```bash
+npm install
+npm run dev:candidate
+npm run dev:employer
+```
+
+Common causes:
+
+- Port `3000` or `3001` already used.
+- Missing dependencies.
+- TypeScript compile error.
+
+Fix port conflict:
+
+```bash
+lsof -i :3000
+lsof -i :3001
+```
+
+### Frontend Cannot Reach Backend
+
+Set:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+```
+
+Notes:
+
+- The scaffold UI currently uses fallback data for first visual checks.
+- Backend connectivity becomes required when feature hooks are wired to real APIs.
+
+### Auth Endpoint Returns 401 Or 403
+
+Checks:
+
+```bash
+curl -i http://localhost:8081/actuator/health
+curl -i -X POST http://localhost:8081/api/auth/signup \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"candidate@example.com","password":"password123","role":"CANDIDATE"}'
+```
+
+Fix:
+
+- Confirm `auth-service` is running on `8081`.
+- Confirm the request path starts with `/api/auth`.
+- Confirm Spring Security config still permits `/api/auth/**`.
+
+### Prometheus Target Is Down
+
+Open:
+
+```text
+http://localhost:9090/targets
+```
+
+Fix:
+
+- Start the backend service for the target.
+- Confirm the service port matches `infra/observability/prometheus/prometheus.yml`.
+- Confirm the metrics endpoint works:
+
+```bash
+curl http://localhost:8082/actuator/prometheus
+```
 
 ### Grafana Shows No Data
 
@@ -734,22 +1111,100 @@ Open:
 http://localhost:9090/targets
 ```
 
-Start at least one backend service. Prometheus cannot scrape a service that is
-not running.
+Fix:
 
-### Port Conflict
+- Make sure Prometheus is running.
+- Make sure at least one backend service is running.
+- In Grafana, confirm the `Prometheus` datasource points to
+  `http://prometheus:9090`.
 
-Common ports:
+### Grafana Login Does Not Work
 
-- Candidate web: `3000`
-- Employer web: `3001`
-- Grafana: `3002`
-- API Gateway: `8080`
-- Jenkins default: `8080`
-- Prometheus: `9090`
+Default local login:
 
-If Jenkins and API Gateway both need port `8080`, run only one at a time or move
-Jenkins to another port.
+- user: `admin`
+- password: `admin`
+
+If you changed `.env`, use:
+
+```text
+GRAFANA_ADMIN_USER
+GRAFANA_ADMIN_PASSWORD
+```
+
+If the old password is stored in the Grafana Docker volume, recreate local
+Grafana data only if you can lose local dashboards:
+
+```bash
+docker compose down
+docker volume rm ai-job-search-platform_grafana-data
+docker compose up -d grafana
+```
+
+### GitHub Actions Fails On npm install
+
+Common causes:
+
+- `package.json` references a package version that no longer resolves.
+- Network or npm registry issue.
+- Future lockfile mismatch after adding `package-lock.json`.
+
+Fix:
+
+```bash
+npm install
+npm run format:check
+npm run ci:web
+```
+
+Commit any required lockfile changes if a lockfile is introduced later.
+
+### GitHub Actions Fails On Maven
+
+Checks:
+
+```bash
+cd backend
+mvn -B verify
+```
+
+Common causes:
+
+- Java version mismatch.
+- Invalid Spring dependency.
+- Compilation error in a service module.
+
+### Jenkins Pipeline Cannot Run Docker
+
+Cause:
+
+- The Jenkins agent user cannot access Docker.
+
+Fix:
+
+- Install Docker on the Jenkins agent.
+- Grant the Jenkins agent user access to Docker only if your security policy
+  allows it.
+- Avoid running untrusted pipeline code with host Docker socket access.
+
+### Need A Clean Local Restart
+
+Soft reset, keeps volumes:
+
+```bash
+./scripts/stop-local.sh
+./scripts/start-local.sh
+```
+
+Hard reset, deletes local Docker volumes:
+
+```bash
+docker compose down -v
+./scripts/start-local.sh
+```
+
+Use the hard reset only when you are comfortable losing local Postgres, MinIO,
+Prometheus, and Grafana data.
 
 ## More Documentation
 
