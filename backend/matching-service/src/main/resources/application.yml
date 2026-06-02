@@ -1,0 +1,16 @@
+server:
+  port: ${SERVER_PORT:8086}
+
+spring:
+  application:
+    name: matching-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

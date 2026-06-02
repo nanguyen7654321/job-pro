@@ -1,0 +1,27 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: candidate-service
+  datasource:
+    # Values default to the root docker-compose.yml settings for local runs.
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:aijobs}
+    username: ${POSTGRES_USER:aijobs}
+    password: ${POSTGRES_PASSWORD:aijobs}
+  jpa:
+    hibernate:
+      # Validate keeps schema ownership explicit. Use migrations before changing
+      # this to update/create in real environments.
+      ddl-auto: validate
+    open-in-view: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

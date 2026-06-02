@@ -1,0 +1,23 @@
+{
+  "name": "ai-job-search-platform",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend/candidate-web",
+    "frontend/employer-web"
+  ],
+  "scripts": {
+    "dev:candidate": "npm --workspace @aijobs/candidate-web run dev",
+    "dev:employer": "npm --workspace @aijobs/employer-web run dev",
+    "build:web": "npm --workspaces run build",
+    "typecheck:web": "npm --workspaces run typecheck",
+    "format": "prettier --write \"**/*.{md,json,yml,yaml,ts,tsx,css}\"",
+    "ci:web": "npm run typecheck:web && npm run build:web",
+    "ci:backend": "mvn -B -f backend/pom.xml verify",
+    "compose:config": "docker compose config",
+    "format:check": "prettier --check \"**/*.{md,json,yml,yaml,ts,tsx,css}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}
