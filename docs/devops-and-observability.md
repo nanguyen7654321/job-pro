@@ -12,86 +12,102 @@ for an MVP:
 The project intentionally does not add or edit `.gitlab-ci.yml` so it stays clear
 of the earlier request not to change GitLab CI configuration.
 
-## What The Pipeline Checks
+## Quick Summary
 
-The CI pipeline is designed to catch the highest-risk scaffold regressions first:
+The DevOps pipeline validates code before it is merged or trusted. It checks
+frontend formatting, TypeScript, frontend builds, backend Maven verification,
+and Docker Compose configuration.
 
-1. Install Node workspace dependencies.
-2. Check formatting for markdown, config, and frontend files.
-3. Typecheck both Next.js web apps.
-4. Build both web apps.
-5. Run Maven verify for all backend modules.
-6. Validate Docker Compose configuration.
+Prometheus collects numeric time-series metrics from the backend services.
+Grafana reads those metrics from Prometheus and displays dashboards that help a
+developer see service health, memory usage, and request traffic.
 
-## GitHub Actions
+## Example Pictures
 
-Workflow file:
+The images below are example visual explanations stored in this repository.
+They are not screenshots from a live production system; they are diagrams and
+dashboard mockups that explain what the current project configuration does.
 
-```text
-.github/workflows/ci.yml
-```
+![DevOps pipeline stages](assets/devops-pipeline-stages.svg)
 
-Why use it:
+![Prometheus and Grafana observability flow](assets/prometheus-grafana-flow.svg)
 
-- It is simple to enable when the project is hosted on GitHub.
-- Public repositories can use standard GitHub-hosted runners without consuming
-  paid minutes under GitHub's current public-repository model.
-- It requires no self-hosted CI server for an MVP.
+![Example Grafana dashboard](assets/grafana-dashboard-example.svg)
 
-How to use it:
+## DevOps Pipeline
 
-1. Push this project to GitHub.
-2. Open the repository's `Actions` tab.
-3. Enable workflows if GitHub asks for confirmation.
-4. Push a branch or open a pull request.
+### What Triggers The Pipeline
 
-Manual run:
+GitHub Actions runs from `.github/workflows/ci.yml`.
 
-1. Open `Actions`.
-2. Select `AI Job Platform CI`.
-3. Choose `Run workflow`.
+| Trigger             | Meaning                                           |
+| ------------------- | ------------------------------------------------- |
+| `push`              | Runs when code is pushed to `main` or `develop`.  |
+| `pull_request`      | Runs when a pull request is opened or updated.    |
+| `workflow_dispatch` | Allows a manual run from the GitHub Actions page. |
 
-## Jenkins
+Jenkins runs from `Jenkinsfile`. Jenkins can be triggered manually, by a GitHub
+webhook, or by a scheduled job depending on how the Jenkins server is
+configured.
 
-Workflow file:
+### GitHub Actions Jobs And Stages
 
-```text
-Jenkinsfile
-```
+GitHub Actions splits the checks into three jobs. These jobs can run in
+parallel on GitHub-hosted runners.
 
-Why include it:
+| Job                                | Stage / Step                   | Command Or Action                          | What It Does                                                               | What It Catches                                                                           |
+| ---------------------------------- | ------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Frontend typecheck and build       | Check out repository           | `actions/checkout@v4`                      | Downloads the repository onto the runner.                                  | Missing workflow access or checkout problems.                                             |
+| Frontend typecheck and build       | Set up Node.js                 | `actions/setup-node@v4`, Node `22`         | Installs the Node version expected by the web apps.                        | Version mismatch between local and CI.                                                    |
+| Frontend typecheck and build       | Install workspace dependencies | `npm install`                              | Installs root and workspace dependencies.                                  | Broken `package-lock.json`, missing packages, dependency resolution failures.             |
+| Frontend typecheck and build       | Check formatting               | `npm run format:check`                     | Runs Prettier check across markdown, JSON, YAML, TypeScript, TSX, and CSS. | Unformatted docs, config, and frontend files.                                             |
+| Frontend typecheck and build       | Typecheck web apps             | `npm run typecheck:web`                    | Runs TypeScript validation for candidate and employer web apps.            | Type errors, invalid props, invalid imports, API type mismatches.                         |
+| Frontend typecheck and build       | Build web apps                 | `npm run build:web`                        | Builds both Next.js apps.                                                  | Build-time errors, route/app issues, invalid production bundles.                          |
+| Backend Maven verify               | Check out repository           | `actions/checkout@v4`                      | Downloads the repository for backend validation.                           | Checkout problems.                                                                        |
+| Backend Maven verify               | Set up Java                    | `actions/setup-java@v4`, Temurin Java `25` | Installs Java and enables Maven cache.                                     | Wrong Java version, missing JDK, slow dependency downloads.                               |
+| Backend Maven verify               | Verify backend modules         | `mvn -B -f backend/pom.xml verify`         | Compiles and verifies all Maven modules.                                   | Java compile errors, failing tests, dependency or plugin issues.                          |
+| Docker Compose configuration check | Check out repository           | `actions/checkout@v4`                      | Downloads the repository for Compose validation.                           | Checkout problems.                                                                        |
+| Docker Compose configuration check | Validate Compose file          | `docker compose config`                    | Parses and normalizes `docker-compose.yml`.                                | Invalid YAML, invalid service definitions, broken variable syntax, bad volume/port shape. |
 
-- Jenkins is open source and can run on a self-hosted machine.
-- It is useful when a team wants full control over runners, network access, and
-  secrets.
-- It avoids hosted CI quotas.
+### Jenkins Stages
 
-Expected Jenkins agent tools:
+Jenkins runs the same checks as a sequential pipeline:
 
-- Node.js 22 or newer.
-- npm 10 or newer.
-- Java 25.
-- Maven 3.9 or newer.
-- Docker with Compose support.
+| Order | Jenkins Stage                 | Command                            | Purpose                                                       |
+| ----- | ----------------------------- | ---------------------------------- | ------------------------------------------------------------- |
+| 1     | Install Frontend Dependencies | `npm install`                      | Install Node dependencies for both web apps.                  |
+| 2     | Check Formatting              | `npm run format:check`             | Make sure committed docs/config/frontend files are formatted. |
+| 3     | Typecheck Web Apps            | `npm run typecheck:web`            | Validate TypeScript for candidate and employer apps.          |
+| 4     | Build Web Apps                | `npm run build:web`                | Confirm both Next.js apps build successfully.                 |
+| 5     | Verify Backend                | `mvn -B -f backend/pom.xml verify` | Compile and verify all Spring Boot modules.                   |
+| 6     | Validate Docker Compose       | `docker compose config`            | Confirm local infrastructure configuration is valid.          |
 
-How to use it:
+### Current Pipeline Scope
 
-1. Install Jenkins.
-2. Create a Pipeline or Multibranch Pipeline job.
-3. Point Jenkins at this repository.
-4. Make sure the Jenkins agent has Node, Java, Maven, and Docker.
-5. Run the job.
+The current pipeline is a validation pipeline. It does not deploy the
+application yet.
+
+Current scope:
+
+- Formatting validation.
+- Frontend typecheck.
+- Frontend production build.
+- Backend Maven verify.
+- Docker Compose config validation.
+
+Good next additions:
+
+- Unit tests for backend services.
+- Frontend component or page tests.
+- API integration tests against Docker Compose dependencies.
+- Docker image build and push.
+- Dependency vulnerability scanning.
+- Deployment to Cloud Run or another MVP hosting target.
 
 ## Prometheus
 
-Prometheus collects time-series metrics. In this project, it scrapes Spring Boot
-Actuator metrics from backend services.
-
-Config file:
-
-```text
-infra/observability/prometheus/prometheus.yml
-```
+Prometheus is the metrics collector. It pulls metrics from configured targets
+on a fixed interval and stores those values as time-series data.
 
 Local URL:
 
@@ -99,19 +115,93 @@ Local URL:
 http://localhost:9090
 ```
 
-Important endpoints:
+Config file:
 
-- `http://localhost:8080/actuator/prometheus`
-- `http://localhost:8081/actuator/prometheus`
-- `http://localhost:8082/actuator/prometheus`
-- `http://localhost:8086/actuator/prometheus`
+```text
+infra/observability/prometheus/prometheus.yml
+```
 
-The Prometheus container scrapes `host.docker.internal` because backend services
-are expected to run from Maven on the host during local development.
+Local Docker Compose service:
+
+```text
+prometheus
+```
+
+Scrape interval:
+
+```text
+15 seconds
+```
+
+### Where Prometheus Collects Data From
+
+Prometheus collects metrics from Spring Boot Actuator endpoints exposed by
+each backend service. The backend services run on the host machine during
+local development, so the Prometheus container reaches them through
+`host.docker.internal`.
+
+| Prometheus Job         | Target                      | Metrics Endpoint            | Source                      |
+| ---------------------- | --------------------------- | --------------------------- | --------------------------- |
+| `prometheus`           | `prometheus:9090`           | Prometheus internal metrics | Prometheus container itself |
+| `api-gateway`          | `host.docker.internal:8080` | `/actuator/prometheus`      | API Gateway                 |
+| `auth-service`         | `host.docker.internal:8081` | `/actuator/prometheus`      | Auth Service                |
+| `candidate-service`    | `host.docker.internal:8082` | `/actuator/prometheus`      | Candidate Service           |
+| `employer-service`     | `host.docker.internal:8083` | `/actuator/prometheus`      | Employer Service            |
+| `job-service`          | `host.docker.internal:8084` | `/actuator/prometheus`      | Job Service                 |
+| `application-service`  | `host.docker.internal:8085` | `/actuator/prometheus`      | Application Service         |
+| `matching-service`     | `host.docker.internal:8086` | `/actuator/prometheus`      | Matching Service            |
+| `notification-service` | `host.docker.internal:8087` | `/actuator/prometheus`      | Notification Service        |
+
+### What Data Prometheus Collects
+
+Spring Boot Actuator and Micrometer expose the metrics. Prometheus stores the
+numeric metric samples.
+
+| Metric Type            | Example Metric                                        | What It Means                                                                          |
+| ---------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Target health          | `up`                                                  | Whether Prometheus can reach a configured target. `1` means reachable, `0` means down. |
+| HTTP traffic           | `http_server_requests_seconds_count`                  | Number of HTTP requests handled by each backend service.                               |
+| HTTP latency           | `http_server_requests_seconds_sum` and bucket metrics | Request timing data that can be used to calculate latency.                             |
+| JVM memory             | `jvm_memory_used_bytes`                               | Memory used by each Java service, including heap memory.                               |
+| JVM garbage collection | `jvm_gc_pause_seconds_count` and related metrics      | Garbage collection frequency and pause behavior.                                       |
+| JVM threads            | `jvm_threads_live_threads`                            | Number of live JVM threads.                                                            |
+| Process CPU            | `process_cpu_usage`                                   | CPU usage from the Java process.                                                       |
+| System CPU             | `system_cpu_usage`                                    | CPU usage visible to the JVM.                                                          |
+
+Prometheus does not collect resumes, passwords, database rows, or application
+logs in this setup. It collects numeric operational metrics.
+
+### Useful Prometheus Queries
+
+Check every configured target:
+
+```promql
+up
+```
+
+Count how many backend services are currently up:
+
+```promql
+sum(up{job=~"api-gateway|auth-service|candidate-service|employer-service|job-service|application-service|matching-service|notification-service"})
+```
+
+Show HTTP request rate per service:
+
+```promql
+sum by (job) (rate(http_server_requests_seconds_count[5m]))
+```
+
+Show JVM heap memory per service:
+
+```promql
+sum by (job) (jvm_memory_used_bytes{area="heap"})
+```
 
 ## Grafana
 
-Grafana visualizes metrics collected by Prometheus.
+Grafana is the dashboard and visualization layer. It does not scrape services
+directly in this project. Grafana queries Prometheus, and Prometheus is the
+data source.
 
 Local URL:
 
@@ -121,46 +211,112 @@ http://localhost:3002
 
 Default local credentials:
 
-- User: `admin`
-- Password: `admin`
+```text
+admin / admin
+```
 
-Provisioned files:
+Datasource provisioning:
 
-- Datasource: `infra/observability/grafana/provisioning/datasources/prometheus.yml`
-- Dashboard provider:
-  `infra/observability/grafana/provisioning/dashboards/dashboards.yml`
-- Dashboard:
-  `infra/observability/grafana/dashboards/ai-job-platform-overview.json`
+```text
+infra/observability/grafana/provisioning/datasources/prometheus.yml
+```
 
-The dashboard shows backend target availability, JVM heap usage, and HTTP request
-rate once backend services are running.
+Dashboard provisioning:
 
-## Run Locally
+```text
+infra/observability/grafana/provisioning/dashboards/dashboards.yml
+```
 
-Start infrastructure and observability:
+Dashboard JSON:
+
+```text
+infra/observability/grafana/dashboards/ai-job-platform-overview.json
+```
+
+### What Grafana Displays
+
+The current dashboard is named `AI Job Platform Overview`.
+
+| Panel                | What It Shows                                    | How To Read It                                                                                 |
+| -------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Backend Targets Up   | Number of backend services Prometheus can reach. | In a full local run, this can reach `8`. Lower means some services are stopped or unreachable. |
+| Service Availability | Up/down line for each service.                   | `1` means reachable; `0` means down.                                                           |
+| JVM Heap Used        | Heap memory used by each Java service.           | Rising memory is normal; constantly rising without dropping can indicate a leak.               |
+| HTTP Request Rate    | Requests per second per backend service.         | This increases when users call APIs from the web apps or curl.                                 |
+
+Dashboard PromQL queries:
+
+Backend targets up:
+
+```promql
+sum(up{job=~"api-gateway|auth-service|candidate-service|employer-service|job-service|application-service|matching-service|notification-service"})
+```
+
+Service availability:
+
+```promql
+up{job=~"api-gateway|auth-service|candidate-service|employer-service|job-service|application-service|matching-service|notification-service"}
+```
+
+JVM heap used:
+
+```promql
+sum by (job) (jvm_memory_used_bytes{area="heap"})
+```
+
+HTTP request rate:
+
+```promql
+sum by (job) (rate(http_server_requests_seconds_count[5m]))
+```
+
+### What Grafana Does Not Display Yet
+
+The dashboard is intentionally small for the MVP. It does not yet display:
+
+- Business KPIs such as resumes uploaded, jobs posted, or applications created.
+- AI matching quality metrics.
+- Logs or traces.
+- PostgreSQL, Redis, or MinIO metrics.
+- Alerts.
+
+Those can be added later after the product workflows and persistence model are
+more complete.
+
+## End-To-End Local Observability Flow
+
+1. Start local infrastructure:
 
 ```bash
 ./scripts/start-local.sh
 ```
 
-Open:
-
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3002`
-- MinIO console: `http://localhost:9001`
-
-Run a backend service so Prometheus has metrics:
+2. Start one or more backend services:
 
 ```bash
 cd backend
 mvn -pl candidate-service spring-boot:run
 ```
 
-Then open Prometheus and query:
+3. Confirm the service exposes metrics:
+
+```bash
+curl http://localhost:8082/actuator/prometheus
+```
+
+4. Open Prometheus targets:
 
 ```text
-up
+http://localhost:9090/targets
 ```
+
+5. Open Grafana:
+
+```text
+http://localhost:3002
+```
+
+6. Open the `AI Job Platform Overview` dashboard.
 
 ## Troubleshooting
 
@@ -172,32 +328,82 @@ Check Prometheus targets:
 http://localhost:9090/targets
 ```
 
-If targets are down, start the backend services on ports `8080` through `8087`.
+If targets are down, start the backend services on ports `8080` through
+`8087`.
 
 ### Prometheus Cannot Reach Host Services
 
 Docker Desktop usually supports `host.docker.internal`. On Linux, Compose also
 sets `host.docker.internal:host-gateway` for the Prometheus service.
 
+Test the backend service directly from the host:
+
+```bash
+curl http://localhost:8082/actuator/prometheus
+```
+
+Then check Prometheus logs:
+
+```bash
+docker compose logs prometheus
+```
+
+### Prometheus Target Is Down
+
+Common causes:
+
+- The backend service is not running.
+- The service is running on a different port.
+- The service failed during startup.
+- `/actuator/prometheus` is not exposed in that service's `application.yml`.
+- Docker cannot resolve `host.docker.internal`.
+
+Fast checks:
+
+```bash
+curl http://localhost:8082/actuator/health
+curl http://localhost:8082/actuator/prometheus
+docker compose ps
+docker compose logs prometheus
+```
+
+### Grafana Dashboard Is Missing
+
+Check provisioning mounts:
+
+```bash
+docker compose logs grafana
+ls infra/observability/grafana/provisioning
+ls infra/observability/grafana/dashboards
+```
+
+Restart Grafana:
+
+```bash
+docker compose restart grafana
+```
+
+### Grafana Login Does Not Work
+
+The local default is:
+
+```text
+admin / admin
+```
+
+If you changed the password earlier, Grafana may have stored it in the Docker
+volume. If you can lose local Grafana data, recreate that volume:
+
+```bash
+docker compose down
+docker volume rm ai-job-search-platform_grafana-data
+docker compose up -d grafana
+```
+
 ### Jenkins Cannot Run Docker Compose
 
-Make sure the Jenkins agent user has permission to access Docker. Avoid mounting
-the host Docker socket into untrusted Jenkins jobs.
-
-### GitHub Actions Workflow Does Not Start
-
-Check:
-
-- The workflow file exists at `.github/workflows/ci.yml`.
-- The repository has Actions enabled.
-- The branch is `main`, `develop`, a pull request branch, or manually triggered.
-
-Manual trigger:
-
-1. Open the repository in GitHub.
-2. Open `Actions`.
-3. Select `AI Job Platform CI`.
-4. Click `Run workflow`.
+Make sure the Jenkins agent user has permission to access Docker. Avoid
+mounting the host Docker socket into untrusted Jenkins jobs.
 
 ### Jenkins Cannot Find Jenkinsfile
 
@@ -218,65 +424,72 @@ java -version
 mvn -v
 ```
 
-### Prometheus Scrapes The Wrong Host
+### GitHub Actions Workflow Does Not Start
 
-The local Prometheus container scrapes backend services through
-`host.docker.internal`. If targets stay down:
+Check:
 
-```bash
-curl http://localhost:8082/actuator/prometheus
-docker compose logs prometheus
-```
+- The workflow file exists at `.github/workflows/ci.yml`.
+- The repository has Actions enabled.
+- The branch is `main`, `develop`, a pull request branch, or manually
+  triggered.
 
-Confirm `infra/observability/prometheus/prometheus.yml` uses the right service
-ports.
+Manual trigger:
 
-### Grafana Dashboard Is Missing
-
-Check provisioning mounts:
-
-```bash
-docker compose logs grafana
-ls infra/observability/grafana/provisioning
-ls infra/observability/grafana/dashboards
-```
-
-Restart Grafana:
-
-```bash
-docker compose restart grafana
-```
+1. Open the repository in GitHub.
+2. Open `Actions`.
+3. Select `AI Job Platform CI`.
+4. Click `Run workflow`.
 
 ## Interview Questions And Answers
 
-**Q: Why add CI/CD to an MVP?**
+**Q: What does the DevOps pipeline do?**
 
-A: CI catches integration problems early. Even a simple pipeline that typechecks,
-builds, verifies backend modules, and validates Docker Compose protects the
-project from broken commits.
+A: It validates the project automatically. It checks formatting, frontend
+TypeScript, frontend production builds, backend Maven verification, and Docker
+Compose configuration.
 
-**Q: Why GitHub Actions instead of GitLab CI?**
+**Q: What are the pipeline stages?**
 
-A: This project uses GitHub Actions because it avoids editing `.gitlab-ci.yml`
-and is easy to enable for a hosted repository. GitLab CI is also a good option if
-the project is hosted in GitLab.
+A: GitHub Actions has three jobs: frontend typecheck/build, backend Maven
+verify, and Docker Compose configuration check. Jenkins runs equivalent stages
+sequentially: install dependencies, format check, typecheck, build, backend
+verify, and Compose validation.
 
-**Q: Why include Jenkins if GitHub Actions exists?**
+**Q: Is this CI or CD?**
 
-A: Jenkins is a free self-hosted alternative. It is useful when a team needs
-private network access, custom runners, or no dependency on hosted CI minutes.
+A: It is CI right now. It validates changes, but it does not deploy. CD can be
+added later with Docker image publishing and Cloud Run or Kubernetes
+deployment stages.
 
-**Q: Why Prometheus?**
+**Q: What does Prometheus do?**
 
-A: Prometheus is a standard open-source metrics system. It scrapes service
-endpoints, stores time-series metrics, and works well with Spring Boot Actuator.
+A: Prometheus collects time-series metrics by scraping configured HTTP
+endpoints, such as each Spring Boot service's `/actuator/prometheus` endpoint.
 
-**Q: Why Grafana?**
+**Q: What does Grafana do?**
 
-A: Grafana turns metrics into dashboards. It helps developers and operators see
-service availability, memory usage, request rate, latency, and error trends.
+A: Grafana displays dashboards. In this project, it queries Prometheus and
+visualizes service availability, JVM heap usage, and HTTP request rate.
+
+**Q: Does Grafana collect data directly from services?**
+
+A: No. Prometheus collects the metrics. Grafana reads from Prometheus.
+
+**Q: What data is collected?**
+
+A: Numeric operational metrics such as target up/down status, HTTP request
+counts, request timing data, JVM memory, JVM thread counts, garbage collection
+behavior, and CPU metrics.
+
+**Q: Does this setup collect user resumes or passwords?**
+
+A: No. The current Prometheus setup collects operational metrics only, not
+resumes, passwords, database rows, or application logs.
 
 ## Official References
+
+References used: GitHub Actions billing, Jenkins Pipeline, Prometheus docs,
+Grafana provisioning.
 
 - GitHub Actions billing:
   https://docs.github.com/en/billing/concepts/product-billing/github-actions
@@ -295,5 +508,6 @@ dependencies into containers. Docker Compose runs multiple containers locally.
 Kubernetes orchestrates many containers across a cluster.
 
 This MVP uses Docker and Docker Compose now. Kubernetes starter manifests are
-included for a future GKE path, but Kubernetes is deferred as the default runtime
-until scale, networking, or platform requirements justify the added complexity.
+included for a future GKE path, but Kubernetes is deferred as the default
+runtime until scale, networking, or platform requirements justify the added
+complexity.

@@ -581,6 +581,12 @@ AI Job Platform Overview
 
 ## DevOps Pipeline
 
+For the detailed pipeline stages, Prometheus/Grafana data flow, metric examples,
+and visual examples, see
+[`docs/devops-and-observability.md`](docs/devops-and-observability.md).
+
+![DevOps pipeline stages](docs/assets/devops-pipeline-stages.svg)
+
 ### GitHub Actions
 
 Workflow:

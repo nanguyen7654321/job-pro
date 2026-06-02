@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">Prometheus And Grafana Observability Flow</title>
+  <desc id="desc">A visual explanation of how Spring Boot services expose metrics, Prometheus scrapes them, and Grafana displays dashboards.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="760" fill="#f8fafc"/>
+  <text x="60" y="62" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#0f172a">Observability Flow: From Services To Dashboard</text>
+  <text x="60" y="98" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#475569">Spring Boot Actuator exposes metrics. Prometheus pulls them every 15 seconds. Grafana visualizes the stored time-series data.</text>
+
+  <rect x="60" y="150" width="300" height="440" rx="18" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" filter="url(#shadow)"/>
+  <text x="92" y="190" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#0f172a">Backend Services</text>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#0f172a">
+    <rect x="92" y="225" width="236" height="36" rx="8" fill="#dbeafe"/><text x="112" y="249">api-gateway :8080</text>
+    <rect x="92" y="270" width="236" height="36" rx="8" fill="#dcfce7"/><text x="112" y="294">auth-service :8081</text>
+    <rect x="92" y="315" width="236" height="36" rx="8" fill="#fef9c3"/><text x="112" y="339">candidate-service :8082</text>
+    <rect x="92" y="360" width="236" height="36" rx="8" fill="#ffedd5"/><text x="112" y="384">employer-service :8083</text>
+    <rect x="92" y="405" width="236" height="36" rx="8" fill="#e0f2fe"/><text x="112" y="429">job-service :8084</text>
+    <rect x="92" y="450" width="236" height="36" rx="8" fill="#f3e8ff"/><text x="112" y="474">application-service :8085</text>
+    <rect x="92" y="495" width="236" height="36" rx="8" fill="#fee2e2"/><text x="112" y="519">matching-service :8086</text>
+    <rect x="92" y="540" width="236" height="36" rx="8" fill="#ccfbf1"/><text x="112" y="564">notification-service :8087</text>
+  </g>
+
+  <line x1="360" y1="370" x2="438" y2="370" stroke="#334155" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="376" y="350" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#475569">/actuator/prometheus</text>
+
+  <rect x="450" y="215" width="270" height="310" rx="18" fill="#ecfdf5" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+  <text x="486" y="257" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#14532d">Prometheus</text>
+  <text x="486" y="292" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#166534">Runs at localhost:9090</text>
+  <text x="486" y="322" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#166534">Scrape interval: 15 seconds</text>
+  <text x="486" y="352" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#166534">Stores time-series metrics</text>
+  <text x="486" y="397" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#14532d">Examples</text>
+  <text x="486" y="423" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#166534">up</text>
+  <text x="486" y="447" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#166534">http_server_requests...</text>
+  <text x="486" y="471" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#166534">jvm_memory_used_bytes</text>
+  <text x="486" y="495" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#166534">process_cpu_usage</text>
+
+  <line x1="720" y1="370" x2="798" y2="370" stroke="#334155" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="739" y="350" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#475569">PromQL queries</text>
+
+  <rect x="810" y="215" width="270" height="310" rx="18" fill="#f3e8ff" stroke="#9333ea" stroke-width="2" filter="url(#shadow)"/>
+  <text x="846" y="257" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#581c87">Grafana OSS</text>
+  <text x="846" y="292" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#6b21a8">Runs at localhost:3002</text>
+  <text x="846" y="322" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#6b21a8">Datasource: Prometheus</text>
+  <text x="846" y="352" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#6b21a8">Refresh: 15 seconds</text>
+  <text x="846" y="397" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#581c87">Current Panels</text>
+  <text x="846" y="423" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#6b21a8">Backend Targets Up</text>
+  <text x="846" y="447" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#6b21a8">Service Availability</text>
+  <text x="846" y="471" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#6b21a8">JVM Heap Used</text>
+  <text x="846" y="495" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#6b21a8">HTTP Request Rate</text>
+
+  <line x1="1080" y1="370" x2="1154" y2="370" stroke="#334155" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="1160" y="300" width="80" height="140" rx="14" fill="#0f172a" filter="url(#shadow)"/>
+  <rect x="1170" y="314" width="60" height="96" rx="5" fill="#e2e8f0"/>
+  <text x="1169" y="435" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" fill="#0f172a">Browser</text>
+
+  <rect x="60" y="645" width="1160" height="58" rx="12" fill="#0f172a"/>
+  <text x="88" y="680" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#e2e8f0">Prometheus collects metrics, not application logs, resumes, credentials, or database rows.</text>
+</svg>
