@@ -1257,6 +1257,7 @@ Prometheus, and Grafana data.
 ## More Documentation
 
 - [Architecture](docs/architecture.md)
+- [Requirement Traceability](docs/requirement-traceability.md)
 - [API Contracts](docs/api-contracts.md)
 - [Database Schema](docs/database-schema.md)
 - [AI Matching Design](docs/ai-matching-design.md)
