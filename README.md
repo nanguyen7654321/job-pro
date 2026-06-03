@@ -186,6 +186,13 @@ docker --version
 docker compose version
 ```
 
+Docker is required for local development because this project uses it to run
+supporting infrastructure as containers. The backend services are still run with
+Maven, but they expect local dependencies such as Postgres, Redis, MinIO,
+Prometheus, and Grafana to be available. Docker keeps those dependencies
+isolated, repeatable, and easy to start or stop without installing each service
+directly on your Mac.
+
 ### Optional But Useful
 
 ```bash
@@ -249,13 +256,18 @@ VERTEX_LOCATION=us-central1
 ./scripts/start-local.sh
 ```
 
-This starts:
+This script runs Docker Compose. It starts the local services that the backend
+depends on or reports metrics to:
 
-- PostgreSQL with pgvector
-- Redis
-- MinIO
-- Prometheus
-- Grafana
+- PostgreSQL with pgvector for application data and local schema seed data.
+- Redis for cache-style local infrastructure.
+- MinIO for S3-like local object storage.
+- Prometheus for collecting backend metrics.
+- Grafana for viewing local dashboards.
+
+Docker Desktop must be open and fully running before this command works. If the
+Docker CLI is installed but Docker Desktop is stopped, the command can fail with
+a Docker socket or daemon connection error.
 
 Equivalent direct command:
 
@@ -347,6 +359,15 @@ If `mvn` is not found, install Maven. If Candidate Service fails with a schema
 validation error, confirm Postgres is running and `scripts/seed-data.sql` has
 run.
 
+When running a single service module on a fresh machine, install the parent POM
+and shared library once first. This lets modules such as `matching-service`
+resolve the local `common-lib` dependency:
+
+```bash
+mvn install -N
+mvn -pl common-lib install
+```
+
 ### 8. Run Backend Services
 
 Each backend service is a Spring Boot module.
@@ -366,7 +387,27 @@ Example:
 
 ```bash
 cd backend
+mvn install -N
+mvn -pl common-lib install
 mvn -pl candidate-service spring-boot:run
+```
+
+When a service is running, open its generated Swagger UI at:
+
+```text
+http://localhost:<service-port>/swagger-ui.html
+```
+
+For example, Matching Service Swagger UI is:
+
+```text
+http://localhost:8086/swagger-ui.html
+```
+
+The raw OpenAPI JSON is available at:
+
+```text
+http://localhost:<service-port>/v3/api-docs
 ```
 
 ### 9. Test Example APIs
@@ -697,6 +738,7 @@ docker-compose.yml                             local infra + observability
 scripts/start-local.sh                         starts local dependencies
 scripts/stop-local.sh                          stops local dependencies
 scripts/seed-data.sql                          local Postgres schema
+docs/database-schema.md                        data model map and schema guide
 infra/observability/prometheus/prometheus.yml  Prometheus scrape config
 infra/observability/grafana/provisioning       Grafana datasource/dashboard provisioning
 infra/observability/grafana/dashboards         Grafana dashboard JSON

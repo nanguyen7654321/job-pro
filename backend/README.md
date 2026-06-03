@@ -32,11 +32,14 @@ From the project root:
 ```bash
 ./scripts/start-local.sh
 cd backend
-mvn clean verify
+mvn install -N
+mvn -pl common-lib install
 mvn -pl candidate-service spring-boot:run
 ```
 
-Run another service by replacing `candidate-service` with the module name.
+The first two Maven commands install the backend parent POM and shared
+`common-lib` module into your local Maven cache. Run another service by replacing
+`candidate-service` with the module name.
 
 ## Metrics
 
@@ -45,6 +48,23 @@ registry dependencies. When a service is running, Prometheus can scrape:
 
 ```text
 http://localhost:<service-port>/actuator/prometheus
+```
+
+## Swagger UI
+
+All Spring Boot service modules include generated OpenAPI docs and Swagger UI.
+When a service is running, open:
+
+```text
+http://localhost:<service-port>/swagger-ui.html
+http://localhost:<service-port>/v3/api-docs
+```
+
+Example for Matching Service:
+
+```text
+http://localhost:8086/swagger-ui.html
+http://localhost:8086/v3/api-docs
 ```
 
 Prometheus:

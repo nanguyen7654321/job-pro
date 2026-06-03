@@ -933,8 +933,9 @@ and error formats. Swagger UI can display the API interactively.
 
 In this project:
 
-- Early contracts are documented in `docs/api-contracts.md`.
-- When APIs stabilize, add springdoc OpenAPI to each service or to the gateway.
+- Contracts are summarized in `docs/api-contracts.md`.
+- Springdoc OpenAPI is added to each Spring Boot service so `/v3/api-docs` and
+  `/swagger-ui.html` are available during local development.
 
 #### Why We Picked It
 

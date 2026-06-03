@@ -1,5 +1,10 @@
 # API Contracts
 
+For the data model map behind these APIs, see
+[`docs/database-schema.md`](database-schema.md). That document separates the
+database schema, implemented JPA entities, backend DTOs, and frontend view
+models.
+
 ## Candidate APIs
 
 - `POST /api/candidates/profile`
@@ -44,11 +49,27 @@ Spring Boot services expose operational endpoints for local monitoring:
 Prometheus scrapes `/actuator/prometheus`; application clients should not depend
 on actuator endpoints for product workflows.
 
+## OpenAPI And Swagger UI
+
+Each Spring Boot service generates an OpenAPI document and serves Swagger UI.
+Replace `<service-port>` with the service port, such as `8086` for
+`matching-service`:
+
+- `GET /v3/api-docs`
+- `GET /v3/api-docs.yaml`
+- `GET /swagger-ui.html`
+
+Example:
+
+```text
+http://localhost:8086/swagger-ui.html
+http://localhost:8086/v3/api-docs
+```
+
 ## API Standards
 
 - JSON request and response bodies.
 - JWT bearer authentication.
-- OpenAPI should be generated per service once endpoint shapes stabilize;
-  this markdown file is the current scaffold contract.
+- OpenAPI is generated per service with Swagger UI for local exploration.
 - Correlation ID propagated with `X-Request-Id`.
 - Validation errors use field-level details.

@@ -46,14 +46,21 @@ placeholder logic.
 ./scripts/start-local.sh
 ```
 
-This starts:
+This script uses Docker Compose to start the local services that the backend
+needs. The Spring Boot backend services run separately with Maven, but they
+connect to these local containers during development.
 
-- PostgreSQL with pgvector on `localhost:5432`
-- Redis on `localhost:6379`
-- MinIO API on `localhost:9000`
-- MinIO console on `http://localhost:9001`
-- Prometheus on `http://localhost:9090`
-- Grafana on `http://localhost:3002`
+- PostgreSQL with pgvector on `localhost:5432` for application data.
+- Redis on `localhost:6379` for cache-style local infrastructure.
+- MinIO API on `localhost:9000` for S3-like local object storage.
+- MinIO console on `http://localhost:9001` for inspecting stored objects.
+- Prometheus on `http://localhost:9090` for backend metrics collection.
+- Grafana on `http://localhost:3002` for local dashboards.
+
+Docker keeps these dependencies isolated and repeatable so you do not have to
+install and configure Postgres, Redis, MinIO, Prometheus, and Grafana directly
+on your Mac. Open Docker Desktop and wait until it is running before using this
+command; otherwise Docker can report a daemon or socket connection error.
 
 The first time Postgres creates its named Docker volume, it runs
 `scripts/seed-data.sql` automatically. If you already had the volume before a
@@ -173,12 +180,25 @@ If `mvn` is not found, install Maven first. If Candidate Service fails with a
 schema validation error, confirm `scripts/seed-data.sql` has run against the
 local Postgres database.
 
+Before running individual service modules on a fresh machine, install the parent
+POM and shared library once:
+
+```bash
+mvn install -N
+mvn -pl common-lib install
+```
+
+This gives modules such as `matching-service` access to the local `common-lib`
+dependency.
+
 ## 11. Run A Backend Service
 
 Example for Candidate Service:
 
 ```bash
 cd backend
+mvn install -N
+mvn -pl common-lib install
 mvn -pl candidate-service spring-boot:run
 ```
 
@@ -192,6 +212,24 @@ Default service ports:
 - Application Service: `8085`
 - Matching Service: `8086`
 - Notification Service: `8087`
+
+When a service is running, open Swagger UI in a browser:
+
+```text
+http://localhost:<service-port>/swagger-ui.html
+```
+
+For Matching Service:
+
+```text
+http://localhost:8086/swagger-ui.html
+```
+
+The raw OpenAPI JSON is available at:
+
+```text
+http://localhost:<service-port>/v3/api-docs
+```
 
 ## 12. Try Example API Calls
 
