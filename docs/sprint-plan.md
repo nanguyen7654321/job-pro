@@ -2,6 +2,8 @@
 
 ## Sprint 1: Foundation
 
+Phase 1 readiness guide: [Phase 1 Backend Readiness](phase1.md).
+
 - Monorepo setup.
 - Docker Compose for Postgres, Redis, MinIO.
 - Auth, Candidate, Job, Matching service skeletons.
